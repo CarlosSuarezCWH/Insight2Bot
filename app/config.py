@@ -1,33 +1,27 @@
-import os
-from dotenv import load_dotenv
-from pydantic_settings import BaseSettings
-
-# Cargar el archivo .env
-load_dotenv()
-
-class Config:
-    TEMP_PDF_PATH = "/tmp/pdf_uploads"  # Ruta temporal para almacenar archivos PDF
+from pydantic import BaseSettings
 
 class Settings(BaseSettings):
-    # Configuración de MySQL
-    DB_HOST: str = os.getenv("DB_HOST", " 0.0.0.0:3306")  # Host de la base de datos MySQL
-    DB_USER: str = os.getenv("DB_USER", "app_user")  # Usuario de la base de datos MySQL
-    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "app_password")  # Contraseña de la base de datos MySQL
-    DB_NAME: str = os.getenv("DB_NAME", "app_db")  # Nombre de la base de datos MySQL
+    """Configuración de la aplicación, cargada desde variables de entorno."""
 
-    # Configuración de MongoDB
-    MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://mongo:27017")  # URI de conexión a MongoDB
+    # Configuración de base de datos MySQL
+    MYSQL_DATABASE_URL: str
+    MYSQL_DATABASE_NAME: str
 
-    # Configuración de JWT (JSON Web Token)
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "supersecretkey")  # Clave secreta para JWT
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")  # Algoritmo para JWT
+    # Configuración de base de datos MongoDB
+    MONGO_DATABASE_URL: str
+    MONGO_DATABASE_NAME: str
 
-    # Configuración de Ollama (si es necesario)
-    OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://ollama:11434")  # Host de Ollama
+    # Configuración JWT
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int
 
-    # Configuración de Redis (si es necesario)
-    REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")  # Host de Redis
-    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))  # Puerto de Redis
+    # Otros parámetros de configuración
+    TEMP_PDF_PATH: str
 
-# Instancia de configuración
+    class Config:
+        """Cargar variables de entorno desde un archivo .env"""
+        env_file = ".env"
+
 settings = Settings()

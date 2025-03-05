@@ -7,8 +7,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    volumes:
-      - ./app:/app/app
     env_file:
       - .env
     depends_on:
@@ -18,8 +16,13 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - app-network
+    # Volumen solo para desarrollo, quitar en producción
+    # volumes:
+    #   - ./app:/app/app
 
   mysql:
     image: mysql:8.0
@@ -70,7 +73,7 @@ services:
       - app-network
 
   redis:
-    image: redis:latest
+    image: redis:6.2
     ports:
       - "6379:6379"
     healthcheck:
