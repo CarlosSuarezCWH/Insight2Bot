@@ -1,92 +1,50 @@
 version: '3.8'
-
 services:
-  backend:
+  api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    environment:
+      - DB_URL=mysql+pymysql://user:password@mysql:3306/rag_db
+      - MONGO_URL=mongodb://mongo:27017
     depends_on:
-      mysql:
-        condition: service_healthy
-      mongo:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app-network
-    # Volumen solo para desarrollo, quitar en producción
-    # volumes:
-    #   - ./app:/app/app
+      - mysql
+      - mongo
+      - ollama
+    volumes:
+      - ./faiss_index:/app/faiss_index  # Persistir el índice FAISS
+    command: ["/bin/sh", "-c", "./wait-for-it.sh mysql:3306 -- ./wait-for-it.sh ollama:11434 -- python scripts/init_db.py && uvicorn api.main:app --host 0.0.0.0 --port 8000"]
 
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: rag_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
     ports:
       - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - app-network
 
   mongo:
     image: mongo:6.0
     ports:
       - "27017:27017"
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - app-network
 
   ollama:
-    build:
-      context: .
-      dockerfile: Dockerfile.ollama
+    image: ollama/ollama:latest
     ports:
       - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0:11434
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    entrypoint: ["sh", "-c", "ollama serve & while ! curl -f http://localhost:11434; do sleep 1; done; ollama pull llama3 && wait"]
-    networks:
-      - app-network
 
-  redis:
-    image: redis:6.2
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - app-network
-
-volumes:
-  ollama_data:
+  curl_task:
+    image: curlimages/curl:latest
+    depends_on:
+      - ollama
+    entrypoint: >
+      /bin/sh -c "until curl -s http://ollama:11434/api/pull; do echo 'Esperando a que Ollama esté listo...'; sleep 2; done && curl -X POST 'http://ollama:11434/api/pull' -H 'Content-Type: application/json' -d '{\"name\": \"llama3\"}'"
+    # Ejecuta el curl después de que Ollama esté listo
 
 networks:
-  app-network:
+  default:
     driver: bridge
